@@ -11,11 +11,14 @@ const passRegex =
 export default function RegistroFormulario({ alEnviar }) {
   const [valores, setValores] = useState({
     nombre: "",
-    apellidos: "",
+    apellidopaterno: "",
+    apellidomaterno: "",
     correo: "",
     contrasena: "",
     confirmar: "",
     telefono: "",
+    preguntasecreta: "",     // <-- NUEVO
+    respuestasecreta: "",    // <-- NUEVO
   });
   const [errores, setErrores] = useState({});
   const [enviando, setEnviando] = useState(false);
@@ -23,7 +26,10 @@ export default function RegistroFormulario({ alEnviar }) {
 
   const actualizar = (e) => {
     const { name, value } = e.target;
-    setValores((v) => ({ ...v, [name]: name === "telefono" ? enmascararTelefono(value) : value }));
+    setValores((v) => ({
+      ...v,
+      [name]: name === "telefono" ? enmascararTelefono(value) : value,
+    }));
   };
 
   // Máscara simple para MX (10 dígitos): (55) 1234 5678
@@ -42,34 +48,55 @@ export default function RegistroFormulario({ alEnviar }) {
 
   const validar = () => {
     const e = {};
-    if (!valores.nombre.trim()) e.nombre = "El nombre es obligatorio.";
-    else if (valores.nombre.trim().length < 2) e.nombre = "Mínimo 2 caracteres.";
 
-    if (!valores.apellidos.trim()) e.apellidos = "Los apellidos son obligatorios.";
-    else if (valores.apellidos.trim().length < 2) e.apellidos = "Mínimo 2 caracteres.";
+    if (!valores.nombre.trim()) e.nombre = "El nombre es obligatorio.";
+    else if (valores.nombre.trim().length < 2)
+      e.nombre = "Mínimo 2 caracteres.";
+
+    if (!valores.apellidopaterno.trim())
+      e.apellidopaterno = "El apellido paterno es obligatorio.";
+    else if (valores.apellidopaterno.trim().length < 1)
+      e.apellidopaterno = "Mínimo 1 caracteres.";
+
+    if (!valores.apellidomaterno.trim())
+      e.apellidomaterno = "El apellido materno es obligatorio.";
+    else if (valores.apellidomaterno.trim().length < 1)
+      e.apellidomaterno = "Mínimo 1 caracteres.";
 
     if (!valores.correo.trim()) e.correo = "El correo es obligatorio.";
-    else if (!emailRegex.test(valores.correo.trim())) e.correo = "Correo no válido.";
+    else if (!emailRegex.test(valores.correo.trim()))
+      e.correo = "Correo no válido.";
 
     if (!valores.contrasena) e.contrasena = "La contraseña es obligatoria.";
     else if (!passRegex.test(valores.contrasena))
-      e.contrasena = "Mínimo 8, con mayúscula, minúscula y número.";
+      e.contrasena =
+        "Mínimo 8, con mayúscula, minúscula y número.";
 
     if (!valores.confirmar) e.confirmar = "Confirma tu contraseña.";
-    else if (valores.confirmar !== valores.contrasena) e.confirmar = "No coincide con la contraseña.";
+    else if (valores.confirmar !== valores.contrasena)
+      e.confirmar = "No coincide con la contraseña.";
 
- 
-    if (!valores.telefono)
-    {
-        e.telefono = "El teléfono es obligatorio.";
+    // Teléfono OBLIGATORIO y de 10 dígitos
+    if (!valores.telefono) {
+      e.telefono = "El teléfono es obligatorio.";
+    } else {
+      const soloDigitos = valores.telefono.replace(/\D/g, "");
+      if (soloDigitos.length !== 10) {
+        e.telefono = "El teléfono debe tener 10 dígitos.";
+      }
     }
-     else {
-            const soloDigitos = valores.telefono.replace(/\D/g, "");
-            if (soloDigitos.length !== 10) 
-                {
-                    e.telefono = "El teléfono debe tener 10 dígitos.";
-                }
-}
+
+    // Pregunta secreta (obligatoria)
+    if (!valores.preguntasecreta) {
+      e.preguntasecreta = "Selecciona una pregunta secreta.";
+    }
+
+    // Respuesta secreta (obligatoria)
+    if (!valores.respuestasecreta.trim()) {
+      e.respuestasecreta = "La respuesta secreta es obligatoria.";
+    } else if (valores.respuestasecreta.trim().length < 3) {
+      e.respuestasecreta = "La respuesta debe tener al menos 3 caracteres.";
+    }
 
     setErrores(e);
     return Object.keys(e).length === 0;
@@ -99,11 +126,14 @@ export default function RegistroFormulario({ alEnviar }) {
       // Limpia campos (opcional)
       setValores({
         nombre: "",
-        apellidos: "",
+        apellidopaterno: "",
+        apellidomaterno: "",
         correo: "",
         contrasena: "",
         confirmar: "",
         telefono: "",
+        preguntasecreta: "",
+        respuestasecreta: "",
       });
       setErrores({});
     } catch (err) {
@@ -137,12 +167,21 @@ export default function RegistroFormulario({ alEnviar }) {
               autoComplete="given-name"
             />
             <CampoTexto
-              etiqueta="Apellidos"
-              nombre="apellidos"
-              valor={valores.apellidos}
+              etiqueta="Apellido Paterno"
+              nombre="apellidopaterno"
+              valor={valores.apellidopaterno}
               onCambio={actualizar}
-              placeholder="Ej. Pérez Gómez"
-              error={errores.apellidos}
+              placeholder="Ej. Pérez"
+              error={errores.apellidopaterno}
+              autoComplete="family-name"
+            />
+            <CampoTexto
+              etiqueta="Apellido Materno"
+              nombre="apellidomaterno"
+              valor={valores.apellidomaterno}
+              onCambio={actualizar}
+              placeholder="Ej. Gómez"
+              error={errores.apellidomaterno}
               autoComplete="family-name"
             />
             <CampoTexto
@@ -179,6 +218,34 @@ export default function RegistroFormulario({ alEnviar }) {
               placeholder="(55) 1234 5678"
               error={errores.telefono}
               autoComplete="tel"
+            />
+
+            {/* PREGUNTA SECRETA (SELECT) */}
+            <CampoTexto
+              etiqueta="Pregunta secreta"
+              nombre="preguntasecreta"
+              tipo="select"
+              valor={valores.preguntasecreta}
+              onCambio={actualizar}
+              placeholder="Selecciona tu pregunta…"
+              error={errores.preguntasecreta}
+              opciones={[
+                "¿Nombre de tu primera mascota?",
+                "¿Ciudad donde naciste?",
+                "¿Segundo nombre de tu madre?",
+                "¿Comida favorita de tu infancia?",
+                "¿Nombre de tu mejor amigo(a) de la infancia?"
+              ]}
+            />
+
+            {/* RESPUESTA SECRETA */}
+            <CampoContrasena
+              etiqueta="Respuesta secreta"
+              nombre="respuestasecreta"
+              valor={valores.respuestasecreta}
+              onCambio={actualizar}
+              placeholder="Tu respuesta"
+              error={errores.respuestasecreta}
             />
           </div>
 
