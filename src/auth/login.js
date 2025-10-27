@@ -9,6 +9,7 @@ const STEPS = {
   VERIFICATION: "verification",
   SUCCESS: "success",
 };
+
 const API_BASE_URL = "http://localhost:4000/api/authentication";
 
 // --- COMPONENTE DE ICONO DEL LOGO ---

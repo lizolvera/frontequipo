@@ -71,7 +71,7 @@ export default function RegistroPage() {
         console.log(`Verificando código: ${codigo} con token: ${tempToken}`);
         
         try {
-            const response = await fetch(`${API_BASE_URL}/2fa/verificar`, { 
+            const response = await fetch(`${API_BASE_URL}/register/2fa/verificar`, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tempToken, codigo }),
@@ -112,7 +112,7 @@ export default function RegistroPage() {
         console.log(`Solicitando reenvío de código para token: ${tempToken}`);
         
         try {
-            const response = await fetch(`${API_BASE_URL}/2fa/reenviar`, {
+            const response = await fetch(`${API_BASE_URL}/register/2fa/reenviar`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tempToken }),

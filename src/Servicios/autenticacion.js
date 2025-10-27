@@ -11,6 +11,8 @@ export async function registrarUsuario(payload) {
   if (!r.ok) throw new Error(data.mensaje || "No se pudo registrar");
   return data; // { ok } o { requires2fa, canal, destino, tempToken }
 }
+
+
 async function request(endpoint, { body, method = "POST" } = {}) {
   const r = await fetch(`${BASE_URL}${endpoint}`, {
     method,
