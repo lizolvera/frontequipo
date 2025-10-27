@@ -9,7 +9,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d\S]{8,}$/;
 
 // SOLO el componente RegistroFormulario
-export default function RegistroFormulario({ alEnviar, alVerificar, alReenviar }) {
+export default function Registroformulario({ alEnviar, alVerificar, alReenviar }) {
   const [valores, setValores] = useState({
     nombre: "",
     apellidopaterno: "",

@@ -1,7 +1,7 @@
 import login from './logo.svg';
 import "./Style/formulario.css";
 // Importa el componente de Registro
-import RegistroFormulario from "./ForRegistro/RegistroFormulario";
+import RegistroFormulario from "./ForRegistro/Registroformulario";
 import RegistroPage   from "./ForRegistro/RegistroPage";
 // Importa el componente de Login
 import LoginFormulario from "./auth/login";
