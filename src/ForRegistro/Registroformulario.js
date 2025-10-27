@@ -1,15 +1,15 @@
 import React, { useState } from "react";
-import CampoTexto from "./CampoTexto";
+import CampoTexto from "./CampoTexto"; 
 import CampoContrasena from "./Campocontrasena";
 import FormularioCodigo2FA from "./FormularioCodigo2FA";
-import "../Style/formulario.css"; // <- ruta corregida
+import "../Style/formulario.css";
 
 // Validaciones
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const passRegex =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d\S]{8,}$/; // 8+, minúscula, mayúscula y número
+const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d\S]{8,}$/;
 
-export default function RegistroFormulario({ alEnviar }) {
+// SOLO el componente RegistroFormulario
+export default function RegistroFormulario({ alEnviar, alVerificar, alReenviar }) {
   const [valores, setValores] = useState({
     nombre: "",
     apellidopaterno: "",
@@ -28,8 +28,23 @@ export default function RegistroFormulario({ alEnviar }) {
   // ==== ESTADO 2FA (registro) ====
   const [otpActivo, setOtpActivo] = useState(false);
   const [otpTempToken, setOtpTempToken] = useState(null);
-  const [otpCanal, setOtpCanal] = useState(null);      // "email" | "sms"
-  const [otpDestino, setOtpDestino] = useState(null);  // texto enmascarado
+  const [otpCanal, setOtpCanal] = useState(null);
+  const [otpDestino, setOtpDestino] = useState(null);
+
+  const resetFormulario = () => {
+    setValores({
+      nombre: "",
+      apellidopaterno: "",
+      apellidomaterno: "",
+      correo: "",
+      contrasena: "",
+      confirmar: "",
+      telefono: "",
+      preguntasecreta: "",
+      respuestasecreta: "",
+    });
+    setErrores({});
+  };
 
   const actualizar = (e) => {
     const { name, value } = e.target;
@@ -39,7 +54,6 @@ export default function RegistroFormulario({ alEnviar }) {
     }));
   };
 
-  // Máscara simple para MX (10 dígitos): (55) 1234 5678
   function enmascararTelefono(v) {
     const d = v.replace(/\D/g, "").slice(0, 10);
     const p1 = d.slice(0, 2);
@@ -76,14 +90,12 @@ export default function RegistroFormulario({ alEnviar }) {
 
     if (!valores.contrasena) e.contrasena = "La contraseña es obligatoria.";
     else if (!passRegex.test(valores.contrasena))
-      e.contrasena =
-        "Mínimo 8, con mayúscula, minúscula y número.";
+      e.contrasena = "Mínimo 8, con mayúscula, minúscula y número.";
 
     if (!valores.confirmar) e.confirmar = "Confirma tu contraseña.";
     else if (valores.confirmar !== valores.contrasena)
       e.confirmar = "No coincide con la contraseña.";
 
-    // Teléfono OBLIGATORIO y de 10 dígitos
     if (!valores.telefono) {
       e.telefono = "El teléfono es obligatorio.";
     } else {
@@ -93,12 +105,10 @@ export default function RegistroFormulario({ alEnviar }) {
       }
     }
 
-    // Pregunta secreta (obligatoria)
     if (!valores.preguntasecreta) {
       e.preguntasecreta = "Selecciona una pregunta secreta.";
     }
 
-    // Respuesta secreta (obligatoria)
     if (!valores.respuestasecreta.trim()) {
       e.respuestasecreta = "La respuesta secreta es obligatoria.";
     } else if (valores.respuestasecreta.trim().length < 3) {
@@ -112,6 +122,13 @@ export default function RegistroFormulario({ alEnviar }) {
   const enviar = async (e) => {
     e.preventDefault();
     setMensajeGeneral("");
+    
+    // VERIFICACIÓN CRÍTICA - asegura que alEnviar existe
+    if (!alEnviar || typeof alEnviar !== 'function') {
+      setMensajeGeneral("❌ Error: Función alEnviar no disponible");
+      return;
+    }
+    
     if (!validar()) return;
 
     try {
@@ -119,45 +136,63 @@ export default function RegistroFormulario({ alEnviar }) {
 
       const valoresLimpios = {
         ...valores,
-        telefono: valores.telefono.replace(/\D/g, ""),
+        telefono: valores.telefono.replace(/\D/g, ""), 
       };
 
-      if (!alEnviar) throw new Error("alEnviar no está definido.");
-
-      // Tu backend debe devolver:
-      //  - { ok: true }  ó
-      //  - { requires2fa: true, canal, destino, tempToken }
+      // Llama a la función real de la API - SOLO para validar y enviar código
       const res = await alEnviar(valoresLimpios);
 
+      // CON EL NUEVO FLUJO: siempre debe venir requires2fa: true
       if (res?.requires2fa) {
-        // Activa la pantalla de código
         setOtpActivo(true);
         setOtpTempToken(res.tempToken);
         setOtpCanal(res.canal);
         setOtpDestino(res.destino);
-        setMensajeGeneral("📨 Revisa tu código de verificación.");
-        return; // Espera a que el usuario verifique el código
+        setMensajeGeneral("📨 Código de verificación enviado. Revisa tu correo electrónico.");
+        return; 
       }
 
-      // Registro directo sin 2FA
-      setMensajeGeneral("✅ Cuenta creada correctamente.");
-      setValores({
-        nombre: "",
-        apellidopaterno: "",
-        apellidomaterno: "",
-        correo: "",
-        contrasena: "",
-        confirmar: "",
-        telefono: "",
-        preguntasecreta: "",
-        respuestasecreta: "",
-      });
-      setErrores({});
+      // Este caso no debería ocurrir con el nuevo flujo
+      setMensajeGeneral("❌ Flujo inesperado. Inténtalo de nuevo.");
+      
     } catch (err) {
-      setMensajeGeneral("❌ " + (err.message || "No se pudo registrar."));
+      setMensajeGeneral("❌ " + (err.message || "No se pudo procesar el registro."));
     } finally {
       setEnviando(false);
     }
+  };
+    
+  const handle2FACompletado = () => {
+    // CON EL NUEVO FLUJO: Esta función se llama cuando la verificación 2FA es exitosa
+    // PERO ahora el registro en BD ya se completó en el backend
+    // Solo mostramos mensaje y limpiamos el formulario
+    setMensajeGeneral("🎉 ¡Verificación completada! Tu cuenta ha sido creada exitosamente.");
+    
+    // Limpiamos el formulario después de un breve delay
+    setTimeout(() => {
+      resetFormulario();
+      setOtpActivo(false);
+      setOtpTempToken(null);
+      setOtpCanal(null);
+      setOtpDestino(null);
+    }, 3000);
+  };
+    
+  const handle2FACancelar = () => {
+    setOtpActivo(false);
+    setOtpTempToken(null);
+    setOtpCanal(null);
+    setOtpDestino(null);
+    setMensajeGeneral("⏹️ Verificación cancelada. Puedes intentar registrar nuevamente.");
+  };
+
+  // Función para manejar cuando el usuario quiere volver al formulario desde 2FA
+  const handleVolverAlFormulario = () => {
+    setOtpActivo(false);
+    setOtpTempToken(null);
+    setOtpCanal(null);
+    setOtpDestino(null);
+    setMensajeGeneral("↩️ Volviendo al formulario de registro.");
   };
 
   return (
@@ -169,10 +204,15 @@ export default function RegistroFormulario({ alEnviar }) {
         </div>
 
         {mensajeGeneral && (
-          <div className="mensaje-general">{mensajeGeneral}</div>
+          <div className={`mensaje-general ${
+            mensajeGeneral.includes("❌") ? "mensaje-error" : 
+            mensajeGeneral.includes("🎉") ? "mensaje-exito" : 
+            "mensaje-info"
+          }`}>
+            {mensajeGeneral}
+          </div>
         )}
 
-        {/* Si NO está activo 2FA → formulario normal; si SÍ → pantalla de código */}
         {!otpActivo ? (
           <form onSubmit={enviar} noValidate>
             <div className="grid-campos">
@@ -230,7 +270,7 @@ export default function RegistroFormulario({ alEnviar }) {
                 error={errores.confirmar}
               />
               <CampoTexto
-                etiqueta="Teléfono móvil "
+                etiqueta="Teléfono móvil"
                 nombre="telefono"
                 valor={valores.telefono}
                 onCambio={actualizar}
@@ -239,7 +279,6 @@ export default function RegistroFormulario({ alEnviar }) {
                 autoComplete="tel"
               />
 
-              {/* PREGUNTA SECRETA (SELECT) */}
               <CampoTexto
                 etiqueta="Pregunta secreta"
                 nombre="preguntasecreta"
@@ -257,7 +296,6 @@ export default function RegistroFormulario({ alEnviar }) {
                 ]}
               />
 
-              {/* RESPUESTA SECRETA */}
               <CampoContrasena
                 etiqueta="Respuesta secreta"
                 nombre="respuestasecreta"
@@ -269,7 +307,7 @@ export default function RegistroFormulario({ alEnviar }) {
             </div>
 
             <button className="boton-principal" type="submit" disabled={enviando}>
-              {enviando ? "Procesando..." : "Crear cuenta"}
+              {enviando ? "Enviando código..." : "Crear cuenta"}
             </button>
 
             <p className="nota-legal">
@@ -281,31 +319,11 @@ export default function RegistroFormulario({ alEnviar }) {
             tempToken={otpTempToken}
             canal={otpCanal}
             destinoEnmascarado={otpDestino}
-            onCompletado={() => {
-              setMensajeGeneral("✅ Cuenta creada correctamente.");
-              setValores({
-                nombre: "",
-                apellidopaterno: "",
-                apellidomaterno: "",
-                correo: "",
-                contrasena: "",
-                confirmar: "",
-                telefono: "",
-                preguntasecreta: "",
-                respuestasecreta: "",
-              });
-              setErrores({});
-              setOtpActivo(false);
-              setOtpTempToken(null);
-              setOtpCanal(null);
-              setOtpDestino(null);
-            }}
-            onCancelar={() => {
-              setOtpActivo(false);
-              setOtpTempToken(null);
-              setOtpCanal(null);
-              setOtpDestino(null);
-            }}
+            alVerificar={alVerificar}
+            alReenviar={alReenviar}
+            onCompletado={handle2FACompletado}
+            onCancelar={handle2FACancelar}
+            onVolver={handleVolverAlFormulario}
           />
         )}
       </div>
