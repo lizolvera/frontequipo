@@ -1,95 +1,75 @@
-
-import React, { useEffect, useState } from "react";
-import CampoTexto from "./CampoTexto";
+import React, { useState } from "react";
 import { verificarRegistro2FA, reenviarRegistro2FA } from "../Servicios/autenticacion";
 
-export default function FormularioCodigo2FA({
-  tempToken,
-  canal,                // "email" | "sms"
-  destinoEnmascarado,   // ej. j***@dominio.com
-  onCompletado,         // () => void
-  onCancelar,           // () => void
-}) {
+export default function FormularioCodigo2FA({ tempToken, destino, onExito, onVolver }) {
   const [codigo, setCodigo] = useState("");
-  const [mensaje, setMensaje] = useState("");
-  const [cargando, setCargando] = useState(false);
-  const [cooldown, setCooldown] = useState(60);
-
-  useEffect(() => {
-    setCooldown(60);
-    const t = setInterval(() => setCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
-    return () => clearInterval(t);
-  }, [tempToken]);
+  const [enviando, setEnviando] = useState(false);
+  const [msg, setMsg] = useState("");
 
   const enviar = async (e) => {
     e.preventDefault();
-    setMensaje("");
-    if (!/^\d{6}$/.test(codigo)) {
-      setMensaje("Ingresa el código de 6 dígitos.");
-      return;
-    }
+    setMsg("");
     try {
-      setCargando(true);
+      setEnviando(true);
       await verificarRegistro2FA({ tempToken, codigo });
-      onCompletado?.();
+      setMsg("✅ Verificado. Tu cuenta está lista.");
+      onExito && onExito();
     } catch (err) {
-      setMensaje(err.message || "Código incorrecto o expirado.");
+      setMsg("❌ " + (err.message || "Error al verificar"));
     } finally {
-      setCargando(false);
+      setEnviando(false);
     }
   };
 
   const reenviar = async () => {
-    if (cooldown > 0) return;
+    setMsg("");
     try {
-      setCargando(true);
+      setEnviando(true);
       await reenviarRegistro2FA({ tempToken });
-      setMensaje("📨 Código reenviado.");
-      setCooldown(60);
+      setMsg("✔️ Código reenviado a " + destino);
     } catch (err) {
-      setMensaje(err.message || "No se pudo reenviar.");
+      setMsg("❌ " + (err.message || "No se pudo reenviar"));
     } finally {
-      setCargando(false);
+      setEnviando(false);
     }
   };
 
   return (
-    <>
-      <p className="subtitulo" style={{ textAlign: "center", marginBottom: 12 }}>
-        Enviamos un código a tu {canal === "sms" ? "teléfono" : "correo"}: <b>{destinoEnmascarado}</b>
-      </p>
+    <div className="contenedor-formulario">
+      <div className="encabezado">
+        <h1 className="titulo">Verifica tu cuenta</h1>
+        <p className="subtitulo">Enviamos un código a <b>{destino}</b></p>
+      </div>
 
-      <form onSubmit={enviar} noValidate>
+      {msg && <div className="mensaje-general">{msg}</div>}
+
+      <form onSubmit={enviar}>
         <div className="grid-campos">
-          <CampoTexto
-            etiqueta="Código de 6 dígitos"
-            nombre="codigo"
-            tipo="text"
-            valor={codigo}
-            onCambio={(e) => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="••••••"
-          />
+          <div className="grupo-campo">
+            <label className="etiqueta-campo" htmlFor="codigo">Código</label>
+            <input
+              id="codigo"
+              name="codigo"
+              className="input-campo"
+              placeholder="123456"
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            />
+          </div>
         </div>
 
-        <button className="boton-principal" disabled={cargando}>
-          {cargando ? "Verificando..." : "Verificar código"}
+        <button className="boton-principal" type="submit" disabled={enviando || codigo.length !== 6}>
+          {enviando ? "Verificando..." : "Confirmar"}
         </button>
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-          <button type="button" className="btn-ver" onClick={onCancelar}>← Volver</button>
-          <button
-            type="button"
-            className="btn-ver"
-            onClick={reenviar}
-            disabled={cooldown > 0 || cargando}
-            title={cooldown > 0 ? `Espera ${cooldown}s` : "Reenviar código"}
-          >
-            {cooldown > 0 ? `Reenviar en ${cooldown}s` : "Reenviar código"}
-          </button>
-        </div>
+        <p className="nota-legal" style={{ marginTop: 12 }}>
+          ¿No te llegó? <button type="button" className="btn-ver" onClick={reenviar} disabled={enviando}>Reenviar código</button>
+        </p>
 
-        {mensaje && <div className="mensaje-general" style={{ marginTop: 12 }}>{mensaje}</div>}
+        <p className="nota-legal">
+          <button type="button" className="btn-ver" onClick={onVolver}>Volver</button>
+        </p>
       </form>
-    </>
+    </div>
   );
 }

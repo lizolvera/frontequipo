@@ -1,30 +1,34 @@
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
+const BASE_URL = "http://localhost:3001"; // cambia si deployas
 
-async function request(path, { body, ...opts } = {}) {
-  try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-      body: body ? JSON.stringify(body) : undefined,
-      // credentials: "include", // descomenta si el backend usa cookies/sesión
-      ...opts,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.mensaje || "Error de servidor");
-    return data;
-  } catch (err) {
-    throw new Error(err.message || "Error de red");
-  }
+export async function registrarUsuario(payload) {
+  const r = await fetch(`${BASE_URL}/registro`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.mensaje || "No se pudo registrar");
+  return data; // { ok } o { requires2fa, canal, destino, tempToken }
 }
 
-export function registrarUsuario(payload) {
-  return request("/registro", { body: payload });
+export async function verificarRegistro2FA({ tempToken, codigo }) {
+  const r = await fetch(`${BASE_URL}/registro/2fa/verificar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tempToken, codigo }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.mensaje || "Código inválido o expirado");
+  return data;
 }
 
-export function verificarRegistro2FA({ tempToken, codigo }) {
-  return request("/registro/2fa/verificar", { body: { tempToken, codigo } });
-}
-
-export function reenviarRegistro2FA({ tempToken }) {
-  return request("/registro/2fa/reenviar", { body: { tempToken } });
+export async function reenviarRegistro2FA({ tempToken }) {
+  const r = await fetch(`${BASE_URL}/registro/2fa/reenviar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tempToken }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.mensaje || "No se pudo reenviar");
+  return data;
 }
