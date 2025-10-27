@@ -14,6 +14,7 @@ export default function CampoContrasena({
   return (
     <div className="grupo-campo">
       <label htmlFor={nombre} className="etiqueta-campo">{etiqueta}</label>
+
       <div className={`envoltura-password ${error ? "input-error" : ""}`}>
         <input
           id={nombre}
@@ -36,6 +37,7 @@ export default function CampoContrasena({
           {ver ? "Ocultar" : "Ver"}
         </button>
       </div>
+
       {error && <p className="mensaje-error">{error}</p>}
     </div>
   );

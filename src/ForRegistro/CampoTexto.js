@@ -3,17 +3,15 @@ import React from "react";
 export default function CampoTexto({
   etiqueta,
   nombre,
-  tipo = "text",      // "text", "email", "password" o "select"
+  tipo = "text",        // "text", "email", "password" o "select"
   valor,
   onCambio,
   placeholder,
   error,
   deshabilitado = false,
   autoComplete,
-  opciones = [],      // SOLO si tipo === "select"
+  opciones = [],        // solo si tipo === "select"
 }) {
-  const clase = `input-campo ${error ? "input-error" : ""}`;
-
   return (
     <div className="grupo-campo">
       <label htmlFor={nombre} className="etiqueta-campo">{etiqueta}</label>
@@ -24,12 +22,12 @@ export default function CampoTexto({
           name={nombre}
           value={valor}
           onChange={onCambio}
-          className={clase}
+          className={`input-campo ${error ? "input-error" : ""}`}
           disabled={deshabilitado}
         >
-          <option value="">{placeholder || "Selecciona una opción…"}</option>
-          {opciones.map((op) => (
-            <option key={op} value={op}>{op}</option>
+          <option value="">{placeholder || "Selecciona una opción"}</option>
+          {opciones.map((op, i) => (
+            <option key={i} value={op}>{op}</option>
           ))}
         </select>
       ) : (
@@ -40,7 +38,7 @@ export default function CampoTexto({
           value={valor}
           onChange={onCambio}
           placeholder={placeholder}
-          className={clase}
+          className={`input-campo ${error ? "input-error" : ""}`}
           disabled={deshabilitado}
           autoComplete={autoComplete}
         />

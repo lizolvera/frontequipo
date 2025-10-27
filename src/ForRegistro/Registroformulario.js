@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import CampoTexto from "./CampoTexto";
 import CampoContrasena from "./Campocontrasena";
-import "../../src/Style/formulario.css";
+import FormularioCodigo2FA from "./FormularioCodigo2FA";
+import "../Style/formulario.css"; // <- ruta corregida
 
 // Validaciones
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,12 +18,18 @@ export default function RegistroFormulario({ alEnviar }) {
     contrasena: "",
     confirmar: "",
     telefono: "",
-    preguntasecreta: "",     // <-- NUEVO
-    respuestasecreta: "",    // <-- NUEVO
+    preguntasecreta: "",
+    respuestasecreta: "",
   });
   const [errores, setErrores] = useState({});
   const [enviando, setEnviando] = useState(false);
   const [mensajeGeneral, setMensajeGeneral] = useState("");
+
+  // ==== ESTADO 2FA (registro) ====
+  const [otpActivo, setOtpActivo] = useState(false);
+  const [otpTempToken, setOtpTempToken] = useState(null);
+  const [otpCanal, setOtpCanal] = useState(null);      // "email" | "sms"
+  const [otpDestino, setOtpDestino] = useState(null);  // texto enmascarado
 
   const actualizar = (e) => {
     const { name, value } = e.target;
@@ -115,15 +122,25 @@ export default function RegistroFormulario({ alEnviar }) {
         telefono: valores.telefono.replace(/\D/g, ""),
       };
 
-      if (alEnviar) {
-        await alEnviar(valoresLimpios);
-      } else {
-        // Simulación de éxito
-        await new Promise((r) => setTimeout(r, 800));
+      if (!alEnviar) throw new Error("alEnviar no está definido.");
+
+      // Tu backend debe devolver:
+      //  - { ok: true }  ó
+      //  - { requires2fa: true, canal, destino, tempToken }
+      const res = await alEnviar(valoresLimpios);
+
+      if (res?.requires2fa) {
+        // Activa la pantalla de código
+        setOtpActivo(true);
+        setOtpTempToken(res.tempToken);
+        setOtpCanal(res.canal);
+        setOtpDestino(res.destino);
+        setMensajeGeneral("📨 Revisa tu código de verificación.");
+        return; // Espera a que el usuario verifique el código
       }
 
+      // Registro directo sin 2FA
       setMensajeGeneral("✅ Cuenta creada correctamente.");
-      // Limpia campos (opcional)
       setValores({
         nombre: "",
         apellidopaterno: "",
@@ -137,7 +154,7 @@ export default function RegistroFormulario({ alEnviar }) {
       });
       setErrores({});
     } catch (err) {
-      setMensajeGeneral("❌ No se pudo registrar. Intenta de nuevo.");
+      setMensajeGeneral("❌ " + (err.message || "No se pudo registrar."));
     } finally {
       setEnviando(false);
     }
@@ -155,108 +172,142 @@ export default function RegistroFormulario({ alEnviar }) {
           <div className="mensaje-general">{mensajeGeneral}</div>
         )}
 
-        <form onSubmit={enviar} noValidate>
-          <div className="grid-campos">
-            <CampoTexto
-              etiqueta="Nombre"
-              nombre="nombre"
-              valor={valores.nombre}
-              onCambio={actualizar}
-              placeholder="Ej. Juan"
-              error={errores.nombre}
-              autoComplete="given-name"
-            />
-            <CampoTexto
-              etiqueta="Apellido Paterno"
-              nombre="apellidopaterno"
-              valor={valores.apellidopaterno}
-              onCambio={actualizar}
-              placeholder="Ej. Pérez"
-              error={errores.apellidopaterno}
-              autoComplete="family-name"
-            />
-            <CampoTexto
-              etiqueta="Apellido Materno"
-              nombre="apellidomaterno"
-              valor={valores.apellidomaterno}
-              onCambio={actualizar}
-              placeholder="Ej. Gómez"
-              error={errores.apellidomaterno}
-              autoComplete="family-name"
-            />
-            <CampoTexto
-              etiqueta="Correo electrónico"
-              nombre="correo"
-              tipo="email"
-              valor={valores.correo}
-              onCambio={actualizar}
-              placeholder="tucorreo@dominio.com"
-              error={errores.correo}
-              autoComplete="email"
-            />
-            <CampoContrasena
-              etiqueta="Contraseña"
-              nombre="contrasena"
-              valor={valores.contrasena}
-              onCambio={actualizar}
-              placeholder="••••••••"
-              error={errores.contrasena}
-            />
-            <CampoContrasena
-              etiqueta="Confirmar contraseña"
-              nombre="confirmar"
-              valor={valores.confirmar}
-              onCambio={actualizar}
-              placeholder="••••••••"
-              error={errores.confirmar}
-            />
-            <CampoTexto
-              etiqueta="Teléfono móvil "
-              nombre="telefono"
-              valor={valores.telefono}
-              onCambio={actualizar}
-              placeholder="(55) 1234 5678"
-              error={errores.telefono}
-              autoComplete="tel"
-            />
+        {/* Si NO está activo 2FA → formulario normal; si SÍ → pantalla de código */}
+        {!otpActivo ? (
+          <form onSubmit={enviar} noValidate>
+            <div className="grid-campos">
+              <CampoTexto
+                etiqueta="Nombre"
+                nombre="nombre"
+                valor={valores.nombre}
+                onCambio={actualizar}
+                placeholder="Ej. Juan"
+                error={errores.nombre}
+                autoComplete="given-name"
+              />
+              <CampoTexto
+                etiqueta="Apellido Paterno"
+                nombre="apellidopaterno"
+                valor={valores.apellidopaterno}
+                onCambio={actualizar}
+                placeholder="Ej. Pérez"
+                error={errores.apellidopaterno}
+                autoComplete="family-name"
+              />
+              <CampoTexto
+                etiqueta="Apellido Materno"
+                nombre="apellidomaterno"
+                valor={valores.apellidomaterno}
+                onCambio={actualizar}
+                placeholder="Ej. Gómez"
+                error={errores.apellidomaterno}
+                autoComplete="family-name"
+              />
+              <CampoTexto
+                etiqueta="Correo electrónico"
+                nombre="correo"
+                tipo="email"
+                valor={valores.correo}
+                onCambio={actualizar}
+                placeholder="tucorreo@dominio.com"
+                error={errores.correo}
+                autoComplete="email"
+              />
+              <CampoContrasena
+                etiqueta="Contraseña"
+                nombre="contrasena"
+                valor={valores.contrasena}
+                onCambio={actualizar}
+                placeholder="••••••••"
+                error={errores.contrasena}
+              />
+              <CampoContrasena
+                etiqueta="Confirmar contraseña"
+                nombre="confirmar"
+                valor={valores.confirmar}
+                onCambio={actualizar}
+                placeholder="••••••••"
+                error={errores.confirmar}
+              />
+              <CampoTexto
+                etiqueta="Teléfono móvil "
+                nombre="telefono"
+                valor={valores.telefono}
+                onCambio={actualizar}
+                placeholder="(55) 1234 5678"
+                error={errores.telefono}
+                autoComplete="tel"
+              />
 
-            {/* PREGUNTA SECRETA (SELECT) */}
-            <CampoTexto
-              etiqueta="Pregunta secreta"
-              nombre="preguntasecreta"
-              tipo="select"
-              valor={valores.preguntasecreta}
-              onCambio={actualizar}
-              placeholder="Selecciona tu pregunta…"
-              error={errores.preguntasecreta}
-              opciones={[
-                "¿Nombre de tu primera mascota?",
-                "¿Ciudad donde naciste?",
-                "¿Segundo nombre de tu madre?",
-                "¿Comida favorita de tu infancia?",
-                "¿Nombre de tu mejor amigo(a) de la infancia?"
-              ]}
-            />
+              {/* PREGUNTA SECRETA (SELECT) */}
+              <CampoTexto
+                etiqueta="Pregunta secreta"
+                nombre="preguntasecreta"
+                tipo="select"
+                valor={valores.preguntasecreta}
+                onCambio={actualizar}
+                placeholder="Selecciona tu pregunta…"
+                error={errores.preguntasecreta}
+                opciones={[
+                  "¿Nombre de tu primera mascota?",
+                  "¿Ciudad donde naciste?",
+                  "¿Segundo nombre de tu madre?",
+                  "¿Comida favorita de tu infancia?",
+                  "¿Nombre de tu mejor amigo(a) de la infancia?",
+                ]}
+              />
 
-            {/* RESPUESTA SECRETA */}
-            <CampoContrasena
-              etiqueta="Respuesta secreta"
-              nombre="respuestasecreta"
-              valor={valores.respuestasecreta}
-              onCambio={actualizar}
-              placeholder="Tu respuesta"
-              error={errores.respuestasecreta}
-            />
-          </div>
+              {/* RESPUESTA SECRETA */}
+              <CampoContrasena
+                etiqueta="Respuesta secreta"
+                nombre="respuestasecreta"
+                valor={valores.respuestasecreta}
+                onCambio={actualizar}
+                placeholder="Tu respuesta"
+                error={errores.respuestasecreta}
+              />
+            </div>
 
-          <button className="boton-principal" type="submit" disabled={enviando}>
-            {enviando ? "Procesando..." : "Crear cuenta"}
-          </button>
+            <button className="boton-principal" type="submit" disabled={enviando}>
+              {enviando ? "Procesando..." : "Crear cuenta"}
+            </button>
 
-          <p className="nota-legal">
-            Al registrarte aceptas nuestros Términos y el Aviso de Privacidad.
-          </p>
-        </form>
+            <p className="nota-legal">
+              Al registrarte aceptas nuestros Términos y el Aviso de Privacidad.
+            </p>
+          </form>
+        ) : (
+          <FormularioCodigo2FA
+            tempToken={otpTempToken}
+            canal={otpCanal}
+            destinoEnmascarado={otpDestino}
+            onCompletado={() => {
+              setMensajeGeneral("✅ Cuenta creada correctamente.");
+              setValores({
+                nombre: "",
+                apellidopaterno: "",
+                apellidomaterno: "",
+                correo: "",
+                contrasena: "",
+                confirmar: "",
+                telefono: "",
+                preguntasecreta: "",
+                respuestasecreta: "",
+              });
+              setErrores({});
+              setOtpActivo(false);
+              setOtpTempToken(null);
+              setOtpCanal(null);
+              setOtpDestino(null);
+            }}
+            onCancelar={() => {
+              setOtpActivo(false);
+              setOtpTempToken(null);
+              setOtpCanal(null);
+              setOtpDestino(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );
